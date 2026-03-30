@@ -1,55 +1,112 @@
 # UAV Flight Control Simulator
 
-A compact C++17 altitude-control simulator that now separates the **controller**, **plant dynamics**, **sensor**, and **simulation runner** into testable modules.
+A compact C++17 vertical-flight simulator with a modular architecture designed to look and feel like an entry-level controls/flight-software project rather than a classroom-only demo.
 
-The project models a proportional altitude controller, a 1D vertical-dynamics plant, deterministic closed-loop simulation, and disturbance injection. It also reports controls-oriented performance metrics such as mean absolute error, RMS error, overshoot, and settling time.
+## Architecture
 
-## Why this version is stronger
+The code is intentionally split into clean layers:
 
-- **Cleaner flight-software style architecture**: the controller computes commands, the plant owns the state, and the simulation runner orchestrates execution.
-- **More aerospace-like plant model**: altitude and vertical velocity are explicit states, and motion comes from thrust, gravity, simple vertical damping, actuator lag, and disturbance acceleration.
-- **Deterministic simulation**: a fixed seed makes runs reproducible for debugging and testing.
-- **Measurable closed-loop results**: the simulator prints metrics you can discuss in a portfolio or interview.
-- **Focused testability**: controller and simulation metrics are tested independently.
+- `Controller`: proportional altitude controller that maps altitude error to a normalized command in `[-1, 1]`.
+- `Plant`: 1D vertical dynamics with altitude, vertical velocity, thrust state, gravity, damping, saturation, and actuator lag.
+- `Sensor`: thread-safe altitude measurement abstraction.
+- `SimulationRunner`: deterministic closed-loop orchestration, telemetry collection, and metrics computation.
 
-## Dynamics assumptions
+Files:
 
-The plant is intentionally simple enough to explain in an interview:
+- `include/Controller.h`, `src/Controller.cpp`
+- `include/Plant.h`, `src/Plant.cpp`
+- `include/Sensor.h`, `src/Sensor.cpp`
+- `include/Simulation.h`, `src/Simulation.cpp`
+- `main.cpp`
 
-- State = altitude, vertical velocity, and actual actuator thrust.
-- The controller output is treated as a normalized thrust command around a hover trim.
-- Actual thrust follows the command through a first-order actuator lag.
-- Net vertical acceleration is computed from thrust acceleration minus gravity, plus disturbance acceleration, with a simple linear vertical-damping term.
-- Altitude is obtained by integrating vertical velocity, rather than updating altitude directly.
+## Dynamics assumptions (simple but interview-friendly)
 
-This keeps the simulator lightweight while making it much closer to a real flight-dynamics/control-loop discussion.
+The vertical model is intentionally lightweight and explainable:
 
-## Project structure
+- State: altitude `z`, vertical velocity `vz`, and actual thrust `u_actual`.
+- Command: controller outputs normalized command `u_cmd` in `[-1,1]`.
+- Thrust mapping: `u_cmd` is added around hover trim and clamped by thrust limits.
+- Actuator lag: first-order response so thrust does not change instantly.
+- Acceleration: net vertical acceleration comes from thrust, gravity, linear damping, and disturbance acceleration.
+- Integration: update `vz`, then update `z` from `vz`.
 
-- `include/Controller.h`, `src/Controller.cpp`: proportional altitude controller that computes a normalized control command from measured altitude.
-- `include/Plant.h`, `src/Plant.cpp`: 1D vertical UAV plant with altitude, vertical velocity, thrust saturation, and actuator lag.
-- `include/Sensor.h`, `src/Sensor.cpp`: sensor abstraction for altitude measurement.
-- `include/Simulation.h`, `src/Simulation.cpp`: deterministic closed-loop runner, telemetry collection, and performance metrics.
-- `tests/controller_tests.cpp`: unit tests for controller behavior.
-- `tests/simulation_tests.cpp`: tests for plant dynamics, actuator behavior, and end-to-end convergence.
+## Metrics reported
 
-## Build and run
+`SimulationRunner` computes and reports:
 
-```bash
-make simulator
-./simulator
-```
-
-## Run tests
-
-```bash
-make test
-```
-
-The simulator logs representative controller samples and prints a performance summary with:
-- final altitude and final error
-- mean absolute error
+- mean absolute error (MAE)
 - RMS error
 - maximum absolute error
 - overshoot
-- 2% settling time
+- settling time (2% band)
+- final altitude and final error
+
+## Deterministic fault scenarios
+
+All scenarios are deterministic with fixed seeds (`SimulationConfig::randomSeed`) and can be selected from CLI:
+
+- `nominal`
+- `sensor_dropout` (holds previous measured value in fault window)
+- `stuck_sensor` (locks measurement after fault onset)
+- `high_noise_burst` (adds large temporary sensor noise)
+- `actuator_degradation` (reduces actuator effectiveness after fault onset)
+
+Default fault window: 5.0s to 8.0s.
+
+## CSV telemetry export
+
+You can optionally export telemetry to CSV for plotting:
+
+```bash
+./simulator nominal telemetry.csv
+```
+
+CSV includes:
+
+- scenario name
+- time
+- target altitude
+- measured altitude
+- true altitude
+- vertical velocity
+- error
+- control command
+- actual thrust
+- disturbance
+
+## Build and run commands
+
+Build simulator:
+
+```bash
+make simulator
+```
+
+Run simulator (nominal default):
+
+```bash
+./simulator
+```
+
+Run a specific scenario:
+
+```bash
+./simulator sensor_dropout
+./simulator stuck_sensor
+./simulator high_noise_burst
+./simulator actuator_degradation
+```
+
+Build and run tests:
+
+```bash
+make controller_tests
+make simulation_tests
+make test
+```
+
+Clean artifacts:
+
+```bash
+make clean
+```

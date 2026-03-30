@@ -18,7 +18,8 @@ Plant::Plant(double initial_altitude,
     maxThrust_(max_thrust),
     hoverThrust_(hover_thrust < 0.0 ? gravity / max_thrust_acceleration : hover_thrust),
     verticalDamping_(vertical_damping),
-    disturbanceAmplitude_(disturbance_amplitude) {
+    disturbanceAmplitude_(disturbance_amplitude),
+    actuatorEffectiveness_(1.0) {
     hoverThrust_ = clamp(hoverThrust_, minThrust_, maxThrust_);
     state_.actualThrust = hoverThrust_;
 }
@@ -32,6 +33,12 @@ double Plant::actuatorTimeConstant() const { return actuatorTimeConstant_; }
 double Plant::hoverThrust() const { return hoverThrust_; }
 double Plant::verticalDamping() const { return verticalDamping_; }
 double Plant::disturbanceAmplitude() const { return disturbanceAmplitude_; }
+double Plant::actuatorEffectiveness() const { return actuatorEffectiveness_; }
+
+void Plant::setActuatorEffectiveness(double effectiveness) {
+    actuatorEffectiveness_ = clamp(effectiveness, 0.0, 1.0);
+}
+
 const PlantState& Plant::state() const { return state_; }
 
 double Plant::commandToDesiredThrust(double control_command) const {
@@ -47,7 +54,8 @@ PlantState Plant::step(double control_command, double disturbance_acceleration, 
     state_.actualThrust += (desiredThrust - state_.actualThrust) * responseAlpha;
     state_.actualThrust = clamp(state_.actualThrust, minThrust_, maxThrust_);
 
-    const double thrustAcceleration = state_.actualThrust * maxThrustAcceleration_;
+    const double thrustAcceleration =
+        state_.actualThrust * maxThrustAcceleration_ * actuatorEffectiveness_;
     const double dragAcceleration = verticalDamping_ * state_.verticalVelocity;
     const double netAcceleration = thrustAcceleration - gravity_ - dragAcceleration + disturbance_acceleration;
 

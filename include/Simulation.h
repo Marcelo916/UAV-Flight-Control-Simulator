@@ -1,10 +1,19 @@
 #pragma once
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "Controller.h"
 #include "Plant.h"
 #include "Sensor.h"
+
+enum class ScenarioKind {
+    Nominal,
+    SensorDropout,
+    StuckSensor,
+    HighNoiseBurst,
+    ActuatorDegradation,
+};
 
 struct SimulationConfig {
     double targetAltitude = 1000.0;
@@ -19,9 +28,11 @@ struct SimulationConfig {
     double hoverThrust = -1.0;
     double verticalDamping = 1.2;
     double disturbanceSigma = 0.4;
+    double sensorNoiseSigma = 0.0;
     double durationSeconds = 15.0;
     double dtSeconds = 0.1;
     unsigned randomSeed = 7;
+    ScenarioKind scenario = ScenarioKind::Nominal;
 };
 
 struct SimulationSample {
@@ -60,3 +71,8 @@ public:
 PerformanceMetrics computeMetrics(const std::vector<SimulationSample>& samples,
                                   double targetAltitude,
                                   double settlingBandFraction = 0.02);
+
+const char* scenarioName(ScenarioKind scenario);
+bool parseScenario(const std::string& text, ScenarioKind& outScenario);
+
+bool writeTelemetryCsv(const std::string& path, const SimulationResult& result);

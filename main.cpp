@@ -1,14 +1,33 @@
 #include <iomanip>
 #include <iostream>
+#include <string>
 
 #include "Simulation.h"
 
-int main() {
+int main(int argc, char** argv) {
     std::cout << "Mini UAV Flight Control Simulator (C++17)\n";
 
-    const SimulationConfig config{};
+    SimulationConfig config{};
+    std::string csvPath;
+
+    if (argc >= 2) {
+        ScenarioKind scenario = ScenarioKind::Nominal;
+        if (!parseScenario(argv[1], scenario)) {
+            std::cerr << "Unknown scenario: " << argv[1] << "\n"
+                      << "Valid scenarios: nominal, sensor_dropout, stuck_sensor, high_noise_burst, actuator_degradation\n";
+            return 1;
+        }
+        config.scenario = scenario;
+    }
+
+    if (argc >= 3) {
+        csvPath = argv[2];
+    }
+
     const SimulationRunner runner;
     const SimulationResult result = runner.run(config);
+
+    std::cout << "Scenario: " << scenarioName(config.scenario) << '\n';
 
     for (std::size_t i = 0; i < result.samples.size(); i += 5) {
         const auto& sample = result.samples[i];
@@ -21,6 +40,15 @@ int main() {
                   << " thrust=" << sample.actualThrust
                   << " gustAcc=" << sample.disturbance
                   << '\n';
+    }
+
+    if (!csvPath.empty()) {
+        if (writeTelemetryCsv(csvPath, result)) {
+            std::cout << "Telemetry CSV written to: " << csvPath << '\n';
+        } else {
+            std::cerr << "Failed to write telemetry CSV to: " << csvPath << '\n';
+            return 2;
+        }
     }
 
     const auto& metrics = result.metrics;

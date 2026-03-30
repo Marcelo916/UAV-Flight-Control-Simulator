@@ -30,6 +30,9 @@ public:
     double hoverThrust() const;
     double verticalDamping() const;
     double disturbanceAmplitude() const;
+    double actuatorEffectiveness() const;
+
+    void setActuatorEffectiveness(double effectiveness);
 
     const PlantState& state() const;
     PlantState step(double control_command, double disturbance_acceleration, double dt_seconds);
@@ -46,4 +49,5 @@ private:
     double hoverThrust_;
     double verticalDamping_;
     double disturbanceAmplitude_;
+    double actuatorEffectiveness_;
 };
