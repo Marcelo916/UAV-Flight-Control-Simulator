@@ -2,21 +2,19 @@
 #include <utility>
 
 #include "Util.h"
-#include "Sensor.h"
 
 class Controller {
 public:
-    Controller(double target_altitude, double kp = 0.02, double max_rate = 1.5);
+    Controller(double target_altitude, double kp = 0.02);
 
-    // Reads sensor, computes throttle, applies effect to altitude (physics)
-    // Returns tuple-like info (current alt, throttle used).
-    std::pair<double,double> step(Sensor& sensor);
+    double computeThrottle(double measured_altitude) const;
+    std::pair<double, double> evaluate(double measured_altitude) const;
 
     void setTarget(double target);
     double target() const;
+    double gain() const;
 
 private:
     double targetAltitude_;
-    double Kp_;        // proportional gain
-    double maxRate_;   // max vertical rate per step (units per cycle)
+    double Kp_;
 };
