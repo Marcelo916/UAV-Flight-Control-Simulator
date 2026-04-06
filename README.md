@@ -74,6 +74,33 @@ CSV includes:
 - actual thrust
 - disturbance
 
+## Visualization
+
+This repo includes a lightweight plotting script to turn telemetry CSV output into a recruiter-friendly figure.
+
+Generate telemetry from the simulator:
+
+```bash
+make simulator
+./simulator nominal telemetry.csv
+```
+
+Generate the PNG figure:
+
+```bash
+python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
+```
+
+After running the command above, your plot will be written to:
+
+```
+plots/nominal_response.png
+```
+
+The top panel shows target altitude versus true altitude so reviewers can quickly see tracking behavior and convergence.
+The lower panels show vertical velocity and actual thrust over time, which helps communicate actuator response and vehicle motion without requiring deep controls background.
+Together, the figure makes simulation results easier to evaluate in interviews and portfolio reviews.
+
 ## Build and run commands
 
 Build simulator:
