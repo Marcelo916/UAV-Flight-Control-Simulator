@@ -1,67 +1,65 @@
+#include <iomanip>
 #include <iostream>
-#include <thread>
-#include <chrono>
-#include <random>
-#include <atomic>
+#include <string>
 
-#include "Sensor.h"
-#include "Controller.h"
+#include "Simulation.h"
 
-// Thread 1: simulates environmental noise/disturbance
-void sensorNoiseLoop(Sensor& sensor, std::atomic<bool>& runFlag) {
-    std::mt19937 rng(std::random_device{}());
-    std::normal_distribution<double> noise(0.0, 0.4); // mean 0, stddev 0.4
-
-    while (runFlag.load()) {
-        sensor.addNoise(noise(rng));                      // small random drift
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-}
-
-// Thread 2: control loop (periodic)
-void controllerLoop(Sensor& sensor, Controller& ctrl, std::atomic<bool>& runFlag) {
-    using namespace std::chrono;
-    const auto period = 100ms; // 10Hz control
-    auto next = steady_clock::now();
-
-    size_t tick = 0;
-    while (runFlag.load()) {
-        next += period;
-
-        auto [alt, thr] = ctrl.step(sensor);
-
-        // Log every 5 cycles ~0.5s
-        if ((tick++ % 5) == 0) {
-            std::cout << "[CTRL] target=" << ctrl.target()
-                      << " alt=" << alt
-                      << " thr=" << thr
-                      << " -> newAlt=" << sensor.readAltitude()
-                      << std::endl;
-        }
-
-        std::this_thread::sleep_until(next);
-    }
-}
-
-int main() {
+int main(int argc, char** argv) {
     std::cout << "Mini UAV Flight Control Simulator (C++17)\n";
 
-    Sensor sensor(980.0);         // start a bit below target
-    Controller controller(1000.0, /*Kp=*/0.03, /*maxRate=*/2.0);
+    SimulationConfig config{};
+    std::string csvPath;
 
-    std::atomic<bool> runFlag{true};
+    if (argc >= 2) {
+        ScenarioKind scenario = ScenarioKind::Nominal;
+        if (!parseScenario(argv[1], scenario)) {
+            std::cerr << "Unknown scenario: " << argv[1] << "\n"
+                      << "Valid scenarios: nominal, sensor_dropout, stuck_sensor, high_noise_burst, actuator_degradation\n";
+            return 1;
+        }
+        config.scenario = scenario;
+    }
 
-    std::thread tNoise(sensorNoiseLoop, std::ref(sensor), std::ref(runFlag));
-    std::thread tCtrl(controllerLoop, std::ref(sensor), std::ref(controller), std::ref(runFlag));
+    if (argc >= 3) {
+        csvPath = argv[2];
+    }
 
-    // Run for ~15 seconds as a demo
-    std::this_thread::sleep_for(std::chrono::seconds(15));
-    runFlag.store(false);
+    const SimulationRunner runner;
+    const SimulationResult result = runner.run(config);
 
-    tNoise.join();
-    tCtrl.join();
+    std::cout << "Scenario: " << scenarioName(config.scenario) << '\n';
 
-    std::cout << "Final altitude: " << sensor.readAltitude() << "\n";
-    std::cout << "Done.\n";
+    for (std::size_t i = 0; i < result.samples.size(); i += 5) {
+        const auto& sample = result.samples[i];
+        std::cout << std::fixed << std::setprecision(2)
+                  << "[CTRL] t=" << sample.timeSeconds << "s"
+                  << " target=" << sample.targetAltitude
+                  << " trueAlt=" << sample.trueAltitude
+                  << " vz=" << sample.verticalVelocity
+                  << " cmd=" << sample.controlCommand
+                  << " thrust=" << sample.actualThrust
+                  << " gustAcc=" << sample.disturbance
+                  << '\n';
+    }
+
+    if (!csvPath.empty()) {
+        if (writeTelemetryCsv(csvPath, result)) {
+            std::cout << "Telemetry CSV written to: " << csvPath << '\n';
+        } else {
+            std::cerr << "Failed to write telemetry CSV to: " << csvPath << '\n';
+            return 2;
+        }
+    }
+
+    const auto& metrics = result.metrics;
+    std::cout << "\nPerformance summary\n"
+              << "  Final altitude:     " << metrics.finalAltitude << '\n'
+              << "  Final error:        " << metrics.finalError << '\n'
+              << "  Mean abs error:     " << metrics.meanAbsoluteError << '\n'
+              << "  RMS error:          " << metrics.rmsError << '\n'
+              << "  Max abs error:      " << metrics.maxAbsoluteError << '\n'
+              << "  Overshoot:          " << metrics.overshoot << '\n'
+              << "  Settling time (2%): " << metrics.settlingTimeSeconds << " s\n"
+              << "Done.\n";
     return 0;
 }
