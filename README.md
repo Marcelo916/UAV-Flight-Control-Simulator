@@ -1,139 +1,66 @@
 # UAV Flight Control Simulator
 
-A compact C++17 vertical-flight simulator with a modular architecture designed to look and feel like an entry-level controls/flight-software project rather than a classroom-only demo.
+This project is a small C++17 UAV altitude-control simulator built to show clean engineering, not just control math. It models a vertical flight loop with realistic effects (lag, saturation, disturbances) and produces deterministic outputs you can test and visualize. In short: it helps demonstrate how a controller behaves under both normal and faulty conditions.
 
-## Architecture
+## What problem this solves
 
-The code is intentionally split into clean layers:
+Simple control demos often show only a happy path and are hard to validate. This simulator provides a repeatable way to test altitude tracking, inject common faults, and inspect results through metrics and plots.
 
-- `Controller`: proportional altitude controller that maps altitude error to a normalized command in `[-1, 1]`.
-- `Plant`: 1D vertical dynamics with altitude, vertical velocity, thrust state, gravity, damping, saturation, and actuator lag.
-- `Sensor`: thread-safe altitude measurement abstraction.
-- `SimulationRunner`: deterministic closed-loop orchestration, telemetry collection, and metrics computation.
+## Key Features
 
-Files:
+- Modular C++17 design (`Controller`, `Plant`, `Sensor`, `SimulationRunner`)
+- Deterministic simulation runs (fixed seed)
+- Fault scenarios: nominal, sensor dropout, stuck sensor, high-noise burst, actuator degradation
+- Closed-loop performance metrics (MAE, RMS error, overshoot, settling time)
+- CSV telemetry export for plotting and review
+- Lightweight Python plotting script for quick visual checks
 
-- `include/Controller.h`, `src/Controller.cpp`
-- `include/Plant.h`, `src/Plant.cpp`
-- `include/Sensor.h`, `src/Sensor.cpp`
-- `include/Simulation.h`, `src/Simulation.cpp`
-- `main.cpp`
-
-## Dynamics assumptions (simple but interview-friendly)
-
-The vertical model is intentionally lightweight and explainable:
-
-- State: altitude `z`, vertical velocity `vz`, and actual thrust `u_actual`.
-- Command: controller outputs normalized command `u_cmd` in `[-1,1]`.
-- Thrust mapping: `u_cmd` is added around hover trim and clamped by thrust limits.
-- Actuator lag: first-order response so thrust does not change instantly.
-- Acceleration: net vertical acceleration comes from thrust, gravity, linear damping, and disturbance acceleration.
-- Integration: update `vz`, then update `z` from `vz`.
-
-## Metrics reported
-
-`SimulationRunner` computes and reports:
-
-- mean absolute error (MAE)
-- RMS error
-- maximum absolute error
-- overshoot
-- settling time (2% band)
-- final altitude and final error
-
-## Deterministic fault scenarios
-
-All scenarios are deterministic with fixed seeds (`SimulationConfig::randomSeed`) and can be selected from CLI:
-
-- `nominal`
-- `sensor_dropout` (holds previous measured value in fault window)
-- `stuck_sensor` (locks measurement after fault onset)
-- `high_noise_burst` (adds large temporary sensor noise)
-- `actuator_degradation` (reduces actuator effectiveness after fault onset)
-
-Default fault window: 5.0s to 8.0s.
-
-## CSV telemetry export
-
-You can optionally export telemetry to CSV for plotting:
-
-```bash
-./simulator nominal telemetry.csv
-```
-
-CSV includes:
-
-- scenario name
-- time
-- target altitude
-- measured altitude
-- true altitude
-- vertical velocity
-- error
-- control command
-- actual thrust
-- disturbance
-
-## Visualization
-
-This repo includes a lightweight plotting script to turn telemetry CSV output into a recruiter-friendly figure.
-
-Generate telemetry from the simulator:
+## Quick Start
 
 ```bash
 make simulator
 ./simulator nominal telemetry.csv
+python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
 ```
 
-Generate the PNG figure:
+## Visualization
+
+1. Generate telemetry:
+
+```bash
+./simulator nominal telemetry.csv
+```
+
+2. Generate the figure:
 
 ```bash
 python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
 ```
 
-After running the command above, your plot will be written to:
+Output file:
 
-```
+```text
 plots/nominal_response.png
 ```
 
-The top panel shows target altitude versus true altitude so reviewers can quickly see tracking behavior and convergence.
-The lower panels show vertical velocity and actual thrust over time, which helps communicate actuator response and vehicle motion without requiring deep controls background.
-Together, the figure makes simulation results easier to evaluate in interviews and portfolio reviews.
+The top panel compares target altitude and true altitude, so tracking performance is clear at a glance. The lower panels show vertical velocity and actual thrust, which makes controller/actuator behavior easy to explain in interviews.
 
-## Build and run commands
-
-Build simulator:
+## Scenarios
 
 ```bash
-make simulator
-```
-
-Run simulator (nominal default):
-
-```bash
-./simulator
-```
-
-Run a specific scenario:
-
-```bash
+./simulator nominal
 ./simulator sensor_dropout
 ./simulator stuck_sensor
 ./simulator high_noise_burst
 ./simulator actuator_degradation
 ```
 
-Build and run tests:
+## Build and Test
 
 ```bash
+make simulator
 make controller_tests
 make simulation_tests
 make test
-```
-
-Clean artifacts:
-
-```bash
 make clean
 ```
