@@ -1,23 +1,66 @@
 # UAV Flight Control Simulator
 
-A compact C++17 simulator demonstrating a proportional UAV altitude controller running in a periodic control loop with concurrent sensor noise injection.
+This project is a small C++17 UAV altitude-control simulator built to show clean engineering, not just control math. It models a vertical flight loop with realistic effects (lag, saturation, disturbances) and produces deterministic outputs you can test and visualize. In short: it helps demonstrate how a controller behaves under both normal and faulty conditions.
 
-The project models a simple altitude sensor, a controller that computes throttle from target error, and multi-threaded execution to show how control and disturbances interact over time.
+## What problem this solves
 
-## Build and run
+Simple control demos often show only a happy path and are hard to validate. This simulator provides a repeatable way to test altitude tracking, inject common faults, and inspect results through metrics and plots.
+
+## Key Features
+
+- Modular C++17 design (`Controller`, `Plant`, `Sensor`, `SimulationRunner`)
+- Deterministic simulation runs (fixed seed)
+- Fault scenarios: nominal, sensor dropout, stuck sensor, high-noise burst, actuator degradation
+- Closed-loop performance metrics (MAE, RMS error, overshoot, settling time)
+- CSV telemetry export for plotting and review
+- Lightweight Python plotting script for quick visual checks
+
+## Quick Start
 
 ```bash
 make simulator
-./simulator
+./simulator nominal telemetry.csv
+python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
 ```
 
-## Run tests
+## Visualization
+
+1. Generate telemetry:
 
 ```bash
-make test
+./simulator nominal telemetry.csv
 ```
 
-The test target verifies:
-- zero error gives zero throttle
-- large positive/negative error saturates throttle to ±1
-- altitude updates match controller logic (`altitude += throttle * maxRate`)
+2. Generate the figure:
+
+```bash
+python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
+```
+
+Output file:
+
+```text
+plots/nominal_response.png
+```
+
+The top panel compares target altitude and true altitude, so tracking performance is clear at a glance. The lower panels show vertical velocity and actual thrust, which makes controller/actuator behavior easy to explain in interviews.
+
+## Scenarios
+
+```bash
+./simulator nominal
+./simulator sensor_dropout
+./simulator stuck_sensor
+./simulator high_noise_burst
+./simulator actuator_degradation
+```
+
+## Build and Test
+
+```bash
+make simulator
+make controller_tests
+make simulation_tests
+make test
+make clean
+```

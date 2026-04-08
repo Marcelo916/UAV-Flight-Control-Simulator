@@ -11,13 +11,3 @@ void Sensor::setAltitude(double alt) {
     std::lock_guard<std::mutex> lock(mtx_);
     altitude_ = alt;
 }
-
-void Sensor::addNoise(double delta) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    altitude_ += delta;
-}
-
-void Sensor::applyPhysics(double verticalRate) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    altitude_ += verticalRate;
-}
