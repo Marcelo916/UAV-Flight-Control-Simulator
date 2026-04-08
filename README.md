@@ -2,6 +2,16 @@
 
 This project is a small C++17 UAV altitude-control simulator built to show clean engineering, not just control math. It models a vertical flight loop with realistic effects (lag, saturation, disturbances) and produces deterministic outputs you can test and visualize. In short: it helps demonstrate how a controller behaves under both normal and faulty conditions.
 
+## Quick Demo
+
+Fastest way to see the project working:
+
+```bash
+make demo
+```
+
+This command builds the simulator, runs a nominal scenario to generate `telemetry.csv`, and creates `plots/nominal_response.png`. It is the quickest end-to-end check for reviewers and recruiters.
+
 ## What problem this solves
 
 Simple control demos often show only a happy path and are hard to validate. This simulator provides a repeatable way to test altitude tracking, inject common faults, and inspect results through metrics and plots.
@@ -18,9 +28,7 @@ Simple control demos often show only a happy path and are hard to validate. This
 ## Quick Start
 
 ```bash
-make simulator
-./simulator nominal telemetry.csv
-python3 tools/plot_telemetry.py telemetry.csv plots/nominal_response.png
+make demo
 ```
 
 ## Visualization
